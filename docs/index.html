@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stats Reasoning Eval</title>
+<meta name="description" content="How well do open LLMs run statistics on real data and catch methodology mistakes? 150 prompts, 60 planted flaws, an LLM judge checked for position bias.">
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7; --surface: #fcfcfb; --card: #ffffff;
+  --ink: #0b0b0b; --ink-2: #52514e; --muted: #898781;
+  --grid: #e1e0d9; --axis: #c3c2b7; --ring: rgba(11,11,11,0.10);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+  --seq-0: #f0efec; --seq-1: #cde2fb; --seq-2: #9ec5f4; --seq-3: #6da7ec; --seq-4: #3987e5; --seq-5: #256abf; --seq-6: #184f95;
+  --good: #0ca30c; --warn: #b77f00; --crit: #d03b3b;
+  --code-bg: #f3f2ee; --accent-wash: rgba(42,120,214,0.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --card: #151514;
+    --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+    --seq-0: #262624; --seq-1: #104281; --seq-2: #184f95; --seq-3: #1c5cab; --seq-4: #256abf; --seq-5: #3987e5; --seq-6: #6da7ec;
+    --good: #0ca30c; --warn: #fab219; --crit: #e66767;
+    --code-bg: #20201e; --accent-wash: rgba(57,135,229,0.12);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d; --surface: #1a1a19; --card: #151514;
+  --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+  --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,0.10);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+  --seq-0: #262624; --seq-1: #104281; --seq-2: #184f95; --seq-3: #1c5cab; --seq-4: #256abf; --seq-5: #3987e5; --seq-6: #6da7ec;
+  --good: #0ca30c; --warn: #fab219; --crit: #e66767;
+  --code-bg: #20201e; --accent-wash: rgba(57,135,229,0.12);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--page); color: var(--ink); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+a { color: var(--s1); }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+header.hero { padding: 48px 0 24px; }
+.eyebrow { color: var(--muted); font-size: 13px; letter-spacing: .04em; text-transform: uppercase; margin: 0 0 8px; }
+h1 { font-size: clamp(28px, 4.4vw, 40px); line-height: 1.15; margin: 0 0 12px; letter-spacing: -0.01em; }
+h2 { font-size: 22px; margin: 0 0 6px; }
+h3 { font-size: 16px; margin: 0 0 8px; }
+.lede { color: var(--ink-2); font-size: 17px; max-width: 760px; margin: 0 0 16px; }
+.links { display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px; }
+section { padding: 28px 0; border-top: 1px solid var(--grid); }
+.sub { color: var(--ink-2); margin: 0 0 18px; max-width: 760px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 20px 0 8px; }
+.tile { background: var(--card); border: 1px solid var(--ring); border-radius: 10px; padding: 14px 16px; }
+.tile .v { font-size: 30px; font-weight: 600; line-height: 1.1; }
+.tile .l { color: var(--ink-2); font-size: 13px; margin-top: 4px; }
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 10px; padding: 18px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: var(--ink-2); margin: 0 0 10px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+svg text { fill: var(--ink-2); font-size: 12px; }
+svg .val { fill: var(--ink); font-size: 12px; }
+svg .axis-label { fill: var(--muted); }
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--grid); }
+th { color: var(--ink-2); font-weight: 500; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.table-scroll { overflow-x: auto; }
+.tip { position: fixed; pointer-events: none; background: var(--card); color: var(--ink); border: 1px solid var(--ring);
+  border-radius: 8px; padding: 8px 10px; font-size: 13px; box-shadow: 0 4px 16px rgba(0,0,0,.12); opacity: 0; transition: opacity .1s; z-index: 10; max-width: 260px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.chip { border: 1px solid var(--ring); background: var(--card); color: var(--ink-2); border-radius: 999px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--accent-wash); color: var(--ink); border-color: var(--s1); }
+select { font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--ring); background: var(--card); color: var(--ink); max-width: 100%; width: 100%; }
+.pane h3 { display: flex; align-items: center; gap: 8px; }
+.tag { font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; }
+.tag.bad { color: var(--crit); } .tag.ok { color: var(--good); }
+pre { background: var(--code-bg); border-radius: 8px; padding: 12px; overflow-x: auto; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 8px 0; white-space: pre; }
+.concl { border-left: 3px solid var(--axis); padding: 4px 0 4px 12px; color: var(--ink); margin: 10px 0 0; }
+.key { background: var(--accent-wash); border-radius: 8px; padding: 12px 14px; margin: 16px 0; }
+.reviews { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-top: 12px; }
+.review { background: var(--card); border: 1px solid var(--ring); border-radius: 10px; padding: 12px 14px; font-size: 14px; }
+.review .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+.review .m { font-weight: 600; }
+.badge { font-size: 12px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; }
+.badge.s2 { color: var(--good); } .badge.s1 { color: var(--warn); } .badge.s0 { color: var(--crit); }
+.review .issue { color: var(--ink-2); margin: 0; }
+.review .verdict { font-size: 12px; color: var(--muted); }
+details summary { cursor: pointer; color: var(--ink-2); font-size: 14px; }
+.muted { color: var(--muted); }
+footer { padding: 28px 0 48px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--grid); }
+.chart-wrap { width: 100%; }
+.chart-wrap svg { width: 100%; height: auto; display: block; }
+</style>
+</head>
+<body>
+<div class="tip" id="tip" role="tooltip"></div>
+<div class="wrap">
+  <header class="hero">
+    <p class="eyebrow">LLM evaluation · applied statistics</p>
+    <h1>Can open models do the stats, and can they spot when it's done wrong?</h1>
+    <p class="lede">150 data questions with reference solutions, plus 60 worked answers with one planted methodology flaw each: peeking, leakage, Simpson's paradox, the wrong test, uncorrected multiple comparisons. Four open models answered and reviewed; an LLM judge graded the reviews and was itself checked.</p>
+    <div class="links"><a href="https://github.com/AbhayJuloori/stats-reasoning-eval">Code and data on GitHub</a><a href="#explorer">Browse the 60 flawed answers</a><a href="#method">How it was graded</a></div>
+    <div class="tiles" id="tiles"></div>
+  </header>
+
+  <section id="catching">
+    <h2>Flagging is not catching</h2>
+    <p class="sub">Each model reviewed 60 flawed answers and 15 correct ones. "Named the flaw" means the review identified the planted mechanism, not just that something was wrong. Three models called every correct answer flawed too, so a flag rate alone would have made them look nearly perfect.</p>
+    <div class="card">
+      <div class="legend" id="legend-catch"></div>
+      <div class="chart-wrap" id="chart-catch"></div>
+    </div>
+  </section>
+
+  <section id="by-flaw">
+    <h2>Which mistakes get caught</h2>
+    <p class="sub">Share of the 12 flawed answers per type where the model named the planted mechanism. Multiple comparisons was nearly invisible: models invented design problems instead of counting the tests.</p>
+    <div class="card"><div class="chart-wrap" id="chart-heat"></div></div>
+  </section>
+
+  <section id="judge">
+    <h2>Checking the judge</h2>
+    <p class="sub">The judge (phi4:14b) was shown each flawed answer next to its corrected version, in both orders. It picked the corrected one far more often when it came second. A larger free model on OpenRouter showed no order effect on 20 pairs.</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>Picked the corrected answer</h3>
+        <div class="legend" id="legend-pos"></div>
+        <div class="chart-wrap" id="chart-pos"></div>
+      </div>
+      <div class="card">
+        <h3>Judge versions</h3>
+        <div class="table-scroll"><table id="judge-table"></table></div>
+        <p class="muted" style="font-size:13px;margin:10px 0 0">v1 read the full rubric and returned a score. v2 parses the review's own verdict in code and asks the judge one yes/no question: did the review name the planted mechanism?</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="solving">
+    <h2>Solving: write a script, run it, check the number</h2>
+    <p class="sub">The model sees a data preview and a question, writes Python, and the printed answer is graded against a reference solution with a tolerance. One repair turn is allowed if the script crashes.</p>
+    <div class="grid2">
+      <div class="card"><div class="table-scroll"><table id="solve-table"></table></div>
+        <p class="muted" style="font-size:13px;margin:10px 0 0">QRData paper, all 411 items: best open model 37%, GPT-4 58%. The models here are about a year newer; 99 items gives wide intervals.</p></div>
+      <div class="card"><h3>Hardest skills (all four models)</h3><div class="table-scroll"><table id="skill-table"></table></div></div>
+    </div>
+  </section>
+
+  <section id="explorer">
+    <h2>Flaw explorer</h2>
+    <p class="sub">Every flawed answer is real code on real data; the numbers come from running it. Pick a case to see the analysis, the corrected version and what each model said.</p>
+    <div class="chips" id="flaw-chips" role="group" aria-label="Filter by flaw type"></div>
+    <select id="case-select" aria-label="Choose a case"></select>
+    <div id="case-view" style="margin-top:16px"></div>
+  </section>
+
+  <section id="method">
+    <h2>How it was graded</h2>
+    <div class="grid2">
+      <div>
+        <h3>Review rubric</h3>
+        <p class="sub" style="margin:0">2: verdict FLAWED and the issue names the planted mechanism. 1: FLAWED but the wrong or a vague reason. 0: called it sound. For correct answers, a FLAWED verdict claiming a serious error is a false alarm.</p>
+      </div>
+      <div>
+        <h3>Data and models</h3>
+        <p class="sub" style="margin:0">Hillstrom MineThatData email experiment (64,000 customers, randomized) and QRData benchmark sheets (CC BY-NC). qwen3:8b, qwen3:14b, gemma3:12b and llama3.1:8b via Ollama; judge phi4:14b; second judge nemotron-3-super-120b on OpenRouter's free tier. Solve sets ran on a Kaggle 2x T4 notebook.</p>
+      </div>
+    </div>
+  </section>
+  <footer>Abhay Juloori · <a href="https://github.com/AbhayJuloori/stats-reasoning-eval">github.com/AbhayJuloori/stats-reasoning-eval</a> · All figures computed by <code>evalset/analyze.py</code> from the run files in the repo.</footer>
+</div>
+
+<script>
+const FLAW_NAMES = { peeking: "Peeking", leakage: "Target leakage", simpsons: "Simpson's paradox",
+  wrong_test: "Wrong test", multiple_comparisons: "Multiple comparisons" };
+const SCORE_LABEL = { 2: ["✓", "Named it"], 1: ["!", "Partial"], 0: ["✕", "Missed"] };
+const CONTROL_LABEL = { 2: ["✓", "Correctly sound"], 1: ["!", "Minor caveat"], 0: ["✕", "False alarm"] };
+const tip = document.getElementById("tip");
+const short = m => m.split("/").pop();
+const pct = r => r && r.n ? Math.floor(100 * r.k / r.n + 0.5) : null;
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const NS = "http://www.w3.org/2000/svg";
+
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function showTip(evt, html) {
+  tip.innerHTML = html; tip.style.opacity = 1;
+  const x = Math.min(evt.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+  tip.style.left = x + "px"; tip.style.top = (evt.clientY + 14) + "px";
+}
+function hideTip() { tip.style.opacity = 0; }
+function hover(node, html) {
+  node.addEventListener("mousemove", e => showTip(e, html));
+  node.addEventListener("mouseleave", hideTip);
+  node.addEventListener("focus", e => { const r = node.getBoundingClientRect(); showTip({ clientX: r.right, clientY: r.top }, html); });
+  node.addEventListener("blur", hideTip);
+  node.setAttribute("tabindex", "0");
+}
+function legend(id, items) {
+  document.getElementById(id).innerHTML = items.map(([c, t]) => `<span><i style="background:var(${c})"></i>${t}</span>`).join("");
+}
+
+// grouped horizontal bars: rows of groups, each with several series
+function groupedBars(container, rows, series, opts = {}) {
+  const W = Math.max(300, Math.min(760, container.clientWidth || 760)), labelW = opts.labelW ?? 120, barH = 14, gap = 2, groupGap = 18, top = 4, right = 44;
+  const groupH = series.length * barH + (series.length - 1) * gap;
+  const H = top + rows.length * (groupH + groupGap) + 22;
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": opts.aria || "bar chart" });
+  const x = v => labelW + (W - labelW - right) * v / 100;
+  [0, 25, 50, 75, 100].forEach(t => {
+    el("line", { x1: x(t), x2: x(t), y1: top, y2: H - 20, stroke: "var(--grid)", "stroke-width": 1 }, svg);
+    el("text", { x: x(t), y: H - 6, "text-anchor": "middle", class: "axis-label" }, svg).textContent = t + "%";
+  });
+  rows.forEach((row, i) => {
+    const y0 = top + i * (groupH + groupGap);
+    el("text", { x: labelW - 10, y: y0 + groupH / 2 + 4, "text-anchor": "end" }, svg).textContent = row.label;
+    series.forEach((s, j) => {
+      const v = row.values[j]; if (v == null) return;
+      const y = y0 + j * (barH + gap), w = Math.max(x(v) - labelW, 2);
+      const g = el("g", {}, svg);
+      el("rect", { x: labelW, y, width: w, height: barH, rx: 3, fill: `var(${s.color})` }, g);
+      el("text", { x: labelW + w + 6, y: y + barH - 3, class: "val" }, g).textContent = v + "%";
+      el("rect", { x: labelW, y: y - 1, width: W - labelW - right + 40, height: barH + 2, fill: "transparent" }, g);
+      hover(g, `<b>${esc(row.label)}</b><br>${esc(s.name)}: ${v}%${row.detail ? "<br>" + esc(row.detail[j]) : ""}`);
+    });
+  });
+  el("line", { x1: labelW, x2: labelW, y1: top, y2: H - 20, stroke: "var(--axis)" }, svg);
+  container.appendChild(svg);
+}
+
+// pick dark or light text by the cell's relative luminance
+function inkOn(hex) {
+  const n = parseInt(hex.replace("#", ""), 16);
+  const lin = c => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const L = 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return L > 0.22 ? "#0b0b0b" : "#ffffff";
+}
+
+function heatmap(container, models, flaws, cell) {
+  const labelW = 96, ch = 40;
+  const W = Math.max(labelW + flaws.length * 52, Math.min(760, container.clientWidth || 760));
+  const tilt = (W - labelW) / flaws.length < 110, padR = tilt ? 52 : 0;
+  const cw = (W - labelW - padR) / flaws.length, top = tilt ? 64 : 34, H = top + models.length * ch + 4;
+  const SHORT = { peeking: "Peeking", leakage: "Leakage", simpsons: "Simpson's", wrong_test: "Wrong test", multiple_comparisons: "Multi-comp." };
+  const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": "catch rate by model and flaw type" });
+  flaws.forEach((f, j) => {
+    const cx = labelW + j * cw + cw / 2;
+    el("text", tilt ? { x: cx - 6, y: top - 8, "text-anchor": "start", transform: `rotate(-35 ${cx - 6} ${top - 8})` }
+                    : { x: cx, y: 20, "text-anchor": "middle" }, svg).textContent = tilt ? SHORT[f] : FLAW_NAMES[f];
+  });
+  const steps = ["--seq-0", "--seq-1", "--seq-2", "--seq-3", "--seq-4", "--seq-5", "--seq-6"];
+  models.forEach((m, i) => {
+    el("text", { x: labelW - 10, y: top + i * ch + ch / 2 + 4, "text-anchor": "end" }, svg).textContent = short(m);
+    flaws.forEach((f, j) => {
+      const c = cell(m, f); const r = c.rate ?? 0;
+      const k = r === 0 ? 0 : Math.min(6, 1 + Math.floor(r * 6));
+      const g = el("g", {}, svg);
+      el("rect", { x: labelW + j * cw + 1, y: top + i * ch + 1, width: cw - 2, height: ch - 2, rx: 4, fill: `var(${steps[k]})` }, g);
+      const fill = getComputedStyle(document.documentElement).getPropertyValue(steps[k]).trim();
+      el("text", { x: labelW + j * cw + cw / 2, y: top + i * ch + ch / 2 + 4, "text-anchor": "middle",
+        style: `fill:${inkOn(fill)};font-weight:500` }, g).textContent = `${c.k}/${c.n}`;
+      hover(g, `<b>${esc(short(m))}</b> · ${FLAW_NAMES[f]}<br>named the flaw in ${c.k} of ${c.n} (${Math.round(r * 100)}%)`);
+    });
+  });
+  container.appendChild(svg);
+}
+
+function render(d) {
+  const S = d.summary, models = d.models, rev = S.reviews;
+  const best = models[0];
+  const flaggedAllClean = models.filter(m => rev[m].false_alarm_rate.rate === 1).length;
+  const mc = models.reduce((a, m) => [a[0] + rev[m].by_flaw.multiple_comparisons.catch.k, a[1] + rev[m].by_flaw.multiple_comparisons.catch.n], [0, 0]);
+  const pw = Object.entries(S.pairwise).find(([j]) => j.includes("phi4"));
+  const tiles = [
+    [`${pct(rev[best].catch_rate)}%`, `best catch rate (${short(best)}), planted flaw named`],
+    [`${flaggedAllClean} of ${models.length}`, "models called every correct control answer flawed"],
+    [`${mc[0]} / ${mc[1]}`, "reviews that caught uncorrected multiple comparisons"],
+    pw ? [`${pct(pw[1].acc_clean_shown_second)}% vs ${pct(pw[1].acc_clean_shown_first)}%`, "judge accuracy, correct answer shown second vs first"] : null,
+  ].filter(Boolean);
+  document.getElementById("tiles").innerHTML = tiles.map(([v, l]) => `<div class="tile"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("");
+
+  const series = [{ name: "Named the planted flaw", color: "--s1" }, { name: "Flagged the flawed answer", color: "--s2" }, { name: "Flagged a correct answer (false alarm)", color: "--s3" }];
+  legend("legend-catch", series.map(s => [s.color, s.name]));
+  groupedBars(document.getElementById("chart-catch"), models.map(m => ({
+    label: short(m),
+    values: [pct(rev[m].catch_rate), pct(rev[m].flag_rate), pct(rev[m].false_alarm_rate)],
+    detail: [`${rev[m].catch_rate.k} of ${rev[m].catch_rate.n} flawed answers`, `${rev[m].flag_rate.k} of ${rev[m].flag_rate.n} flawed answers`, `${rev[m].false_alarm_rate.k} of ${rev[m].false_alarm_rate.n} correct answers`],
+  })), series, { aria: "catch, flag and false alarm rate per model" });
+
+  heatmap(document.getElementById("chart-heat"), models, d.flaws, (m, f) => rev[m].by_flaw[f].catch);
+
+  const judges = Object.entries(S.pairwise);
+  const pseries = [{ name: "Corrected answer shown first", color: "--s1" }, { name: "Corrected answer shown second", color: "--s2" }];
+  legend("legend-pos", pseries.map(s => [s.color, s.name]));
+  groupedBars(document.getElementById("chart-pos"), judges.map(([j, e]) => ({
+    label: short(j).replace(":free", "").replace("nemotron-3-super-120b-a12b", "nemotron-120b"),
+    values: [pct(e.acc_clean_shown_first), pct(e.acc_clean_shown_second)],
+    detail: [`${e.acc_clean_shown_first.k} of ${e.acc_clean_shown_first.n} pairs`, `${e.acc_clean_shown_second.k} of ${e.acc_clean_shown_second.n} pairs`],
+  })), pseries, { labelW: 108, aria: "judge accuracy by answer order" });
+
+  const v = S.judge_rubric_violations, h = S.judge_vs_hand;
+  const kap = ver => h[ver] && h[ver].kappa_3class != null ? `${h[ver].kappa_3class} (n=${h[ver].n})` : "pending hand grades";
+  const raw = ver => h[ver] && h[ver].raw_agreement_3class != null ? Math.round(h[ver].raw_agreement_3class * 100) + "%" : "–";
+  document.getElementById("judge-table").innerHTML = `<tr><th></th><th class="num">v1</th><th class="num">v2</th></tr>
+    <tr><td>Scores contradicting the review's own verdict</td><td class="num">${pct(v.v1)}%</td><td class="num">${pct(v.v2)}%</td></tr>
+    <tr><td>Raw agreement with hand grades</td><td class="num">${raw("v1")}</td><td class="num">${raw("v2")}</td></tr>
+    <tr><td>Cohen's kappa vs hand grades</td><td class="num">${kap("v1")}</td><td class="num">${kap("v2")}</td></tr>`;
+
+  const sp = S.solve_prompts, sq = S.solve_qrdata, qt = S.qrdata_by_type;
+  const order = Object.keys(sp).sort((a, b) => sp[b].overall.rate - sp[a].overall.rate);
+  document.getElementById("solve-table").innerHTML = `<tr><th>Model</th><th class="num">150 prompts</th><th class="num">QRData (99)</th><th class="num">statistical</th><th class="num">causal</th></tr>` +
+    order.map(m => `<tr><td>${short(m)}</td><td class="num">${pct(sp[m].overall)}%</td><td class="num">${pct(sq[m]?.overall)}%</td><td class="num">${pct(qt[m]?.statistical)}%</td><td class="num">${pct(qt[m]?.causal)}%</td></tr>`).join("");
+  const skills = Object.entries(d.skills).filter(([, [k, n]]) => n >= 8).sort((a, b) => a[1][0] / a[1][1] - b[1][0] / b[1][1]).slice(0, 6);
+  document.getElementById("skill-table").innerHTML = `<tr><th>Skill</th><th class="num">Correct</th></tr>` +
+    skills.map(([s, [k, n]]) => `<tr><td>${esc(s)}</td><td class="num">${k} / ${n}</td></tr>`).join("");
+
+  if (!render.explorerReady) { explorer(d); render.explorerReady = true; }
+}
+
+function explorer(d) {
+  const chips = document.getElementById("flaw-chips"), select = document.getElementById("case-select");
+  let active = "all";
+  const options = [["all", "All types"], ...d.flaws.map(f => [f, FLAW_NAMES[f]])];
+  chips.innerHTML = options.map(([k, t]) => `<button class="chip" data-k="${k}" aria-pressed="${k === active}">${t}</button>`).join("");
+  chips.addEventListener("click", e => {
+    const b = e.target.closest(".chip"); if (!b) return;
+    active = b.dataset.k;
+    chips.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c.dataset.k === active));
+    fill(); show(select.value, true);
+  });
+  function fill() {
+    const list = d.cases.filter(c => active === "all" || c.flaw === active);
+    select.innerHTML = list.map(c => `<option value="${c.id}">${FLAW_NAMES[c.flaw]} · ${esc(c.task)}</option>`).join("");
+  }
+  select.addEventListener("change", () => show(select.value, true));
+  fill();
+  const fromHash = location.hash.startsWith("#case-") ? location.hash.slice(6) : null;
+  if (fromHash && d.cases.some(c => c.id === fromHash)) {
+    select.value = fromHash;
+    requestAnimationFrame(() => document.getElementById("explorer").scrollIntoView());
+  }
+  show(select.value);
+  window.addEventListener("hashchange", () => {
+    const id = location.hash.startsWith("#case-") ? location.hash.slice(6) : null;
+    if (!id || !d.cases.some(c => c.id === id)) return;
+    active = "all"; chips.querySelectorAll(".chip").forEach(c => c.setAttribute("aria-pressed", c.dataset.k === "all"));
+    fill(); select.value = id; show(id);
+  });
+
+  function reviewCard(r, labels) {
+    const [icon, label] = labels[r.score] ?? ["?", "Ungraded"];
+    return `<div class="review"><div class="top"><span class="m">${esc(r.model)}</span><span class="badge s${r.score}">${icon} ${label}</span></div>
+      <div class="verdict">Verdict: ${esc(r.verdict)}</div><p class="issue">${esc(r.issue)}</p></div>`;
+  }
+  function show(id, pin) {
+    const c = d.cases.find(x => x.id === id); if (!c) return;
+    if (pin) history.replaceState(null, "", "#case-" + id);
+    const pane = (title, cls, v) => `<div class="card pane"><h3>${title} <span class="tag ${cls}">${cls === "bad" ? "planted flaw" : "corrected"}</span></h3>
+      <details ${cls === "bad" ? "open" : ""}><summary>Code and output</summary><pre>${esc(v.code.trim())}</pre><pre>${esc(v.output.trim())}</pre></details>
+      <p class="concl">${esc(v.conclusion)}</p></div>`;
+    document.getElementById("case-view").innerHTML = `
+      <h3>${esc(c.task)}</h3><p class="muted" style="margin:0 0 12px;font-size:14px">${esc(c.data)}</p>
+      <div class="grid2">${pane("Analysis as submitted", "bad", c.flawed)}${pane("Corrected analysis", "ok", c.clean)}</div>
+      <div class="key"><b>What a reviewer should catch.</b> ${esc(c.key)}</div>
+      <h3>Model reviews of the flawed answer</h3><div class="reviews">${c.reviews.map(r => reviewCard(r, SCORE_LABEL)).join("")}</div>
+      ${c.control_reviews.length ? `<h3 style="margin-top:20px">Reviews of the corrected answer (clean control)</h3><div class="reviews">${c.control_reviews.map(r => reviewCard(r, CONTROL_LABEL)).join("")}</div>` : ""}`;
+  }
+}
+
+let DATA;
+function rerender() {
+  if (!DATA) return;
+  ["chart-catch", "chart-heat", "chart-pos"].forEach(id => document.getElementById(id).innerHTML = "");
+  render(DATA);
+}
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerender);
+let resizeTimer, lastWidth = window.innerWidth;
+window.addEventListener("resize", () => {
+  if (window.innerWidth === lastWidth) return;
+  lastWidth = window.innerWidth;
+  clearTimeout(resizeTimer); resizeTimer = setTimeout(rerender, 150);
+});
+fetch("data.json").then(r => r.json()).then(d => { DATA = d; render(d); }).catch(err => {
+  document.getElementById("tiles").innerHTML = `<p class="muted">Could not load data.json (${esc(err.message)}).</p>`;
+});
+</script>
+</body>
+</html>

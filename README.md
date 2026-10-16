@@ -6,6 +6,8 @@ public sources, the [QRData](https://github.com/xxxiaol/QRData) benchmark sheets
 [Hillstrom MineThatData](https://blog.minethatdata.com/2008/03/minethatdata-e-mail-analytics-and-data.html)
 email experiment (64,000 customers, randomized into three arms).
 
+**Results page with a browsable explorer of all 60 flawed answers:** https://abhayjuloori.github.io/stats-reasoning-eval/
+
 Everything runs on free models: four open models served locally with Ollama, plus one free
 OpenRouter model as a second judge.
 
@@ -80,9 +82,9 @@ The smaller judge leans toward whichever answer it reads second; swapping the or
 
 | model | 150 written prompts | QRData sample (99 items) | QRData statistical | QRData causal |
 |---|---|---|---|---|
-| qwen3:8b | 65% | 52% | 60% | 48% |
+| qwen3:8b | 65% | 53% | 60% | 48% |
 | qwen3:14b | 62% | 54% | 66% | 47% |
-| gemma3:12b | 60% | 48% | 57% | 42% |
+| gemma3:12b | 60% | 47% | 57% | 42% |
 | llama3.1:8b | 55% | 31% | 37% | 28% |
 
 - The QRData paper reports 37% for its best open model and 58% for GPT-4 on all 411 items.
@@ -112,6 +114,7 @@ ollama pull qwen3:8b && ollama pull llama3.1:8b && ollama pull gemma3:12b && oll
 .venv/bin/python -m evalset.run_solve --set prompts --models ollama/qwen3:8b
 .venv/bin/python -m evalset.hand_grade     # hand grades for the kappa check
 .venv/bin/python -m evalset.analyze
+.venv/bin/python -m evalset.export_site    # refreshes docs/data.json for the results page
 .venv/bin/python -m pytest -q tests
 ```
 
