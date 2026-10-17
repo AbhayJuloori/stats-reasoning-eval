@@ -35,7 +35,7 @@ shown, so the flawed answers read like an analyst's honest write up of a broken 
 3. **Judging.** An LLM judge (phi4:14b) scores each review on the rubric. Two versions:
    v1 hands the judge the whole rubric; v2 parses the verdict in code and asks the judge one
    yes/no question (did the review name the planted mechanism?).
-4. **Judge checks.** Judge scores are compared with hand grades using Cohen's kappa
+4. **Judge checks.** Judge scores are compared with hand-reviewed grades using Cohen's kappa
    (`evalset/hand_grade.py`), and the judge is shown each flawed / clean pair in both orders to
    measure position bias.
 
@@ -67,7 +67,17 @@ Full tables: [`results/tables.md`](results/tables.md). All numbers below come fr
 | | v1 (full rubric) | v2 (verdict in code + yes/no) |
 |---|---|---|
 | judge scores that contradict the review's own verdict | 26% | 0% (by construction) |
-| Cohen's kappa vs hand grades | see `results/tables.md` | see `results/tables.md` |
+| raw agreement with 80 hand-reviewed grades (0/1/2) | 65% | 91% |
+| Cohen's kappa vs hand-reviewed grades | 0.50 | 0.87 |
+
+Moving the verdict check into code took the judge from moderate to strong agreement. Raw
+agreement overstates both: v1 still matches 94% of grades on the simpler "caught or not"
+question, where its kappa is 0.87.
+
+Hand-reviewed grades: a stratified sample of 80 reviews (by flaw type and verdict). Each got a
+draft score with a one line reason from a second grader (an LLM that never saw the judge's
+scores), and each draft was confirmed or changed by hand: 1 of 79 changed, plus 1 graded
+without a draft. Files: `results/draft_grades.jsonl`, `results/hand_grades.jsonl`.
 
 ### Position bias (flawed vs corrected twin, both orders)
 
@@ -126,7 +136,9 @@ before each call.
 
 - 12 flawed answers per type and four small open models: per-type rates move a lot with one
   or two reviews (Wilson intervals are in `results/summary.json`).
-- One judge model grades every review; its errors are measured against hand grades, not removed.
+- One judge model grades every review; its errors are measured against hand-reviewed grades, not removed.
+- The hand-reviewed grades started from drafts, so they are not fully independent of a model:
+  1 of 79 drafts was changed on review.
 - Five Simpson's paradox cases use published tables (kidney stones, Berkeley admissions,
   Florida death penalty, Jeter vs Justice, Whickham) that models have likely seen in training.
 

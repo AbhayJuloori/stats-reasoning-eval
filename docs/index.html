@@ -134,7 +134,7 @@ footer { padding: 28px 0 48px; color: var(--muted); font-size: 13px; border-top:
       <div class="card">
         <h3>Judge versions</h3>
         <div class="table-scroll"><table id="judge-table"></table></div>
-        <p class="muted" style="font-size:13px;margin:10px 0 0">v1 read the full rubric and returned a score. v2 parses the review's own verdict in code and asks the judge one yes/no question: did the review name the planted mechanism?</p>
+        <p class="muted" style="font-size:13px;margin:10px 0 0">v1 read the full rubric and returned a score. v2 parses the review's own verdict in code and asks the judge one yes/no question: did the review name the planted mechanism? Hand-reviewed grades: 80 stratified reviews, each draft score confirmed or changed by hand.</p>
       </div>
     </div>
   </section>
@@ -306,12 +306,12 @@ function render(d) {
   })), pseries, { labelW: 108, aria: "judge accuracy by answer order" });
 
   const v = S.judge_rubric_violations, h = S.judge_vs_hand;
-  const kap = ver => h[ver] && h[ver].kappa_3class != null ? `${h[ver].kappa_3class} (n=${h[ver].n})` : "pending hand grades";
+  const kap = ver => h[ver] && h[ver].kappa_3class != null ? `${h[ver].kappa_3class.toFixed(2)}` : "pending hand grades";
   const raw = ver => h[ver] && h[ver].raw_agreement_3class != null ? Math.round(h[ver].raw_agreement_3class * 100) + "%" : "–";
   document.getElementById("judge-table").innerHTML = `<tr><th></th><th class="num">v1</th><th class="num">v2</th></tr>
     <tr><td>Scores contradicting the review's own verdict</td><td class="num">${pct(v.v1)}%</td><td class="num">${pct(v.v2)}%</td></tr>
-    <tr><td>Raw agreement with hand grades</td><td class="num">${raw("v1")}</td><td class="num">${raw("v2")}</td></tr>
-    <tr><td>Cohen's kappa vs hand grades</td><td class="num">${kap("v1")}</td><td class="num">${kap("v2")}</td></tr>`;
+    <tr><td>Raw agreement with hand-reviewed grades</td><td class="num">${raw("v1")}</td><td class="num">${raw("v2")}</td></tr>
+    <tr><td>Cohen's kappa vs hand-reviewed grades</td><td class="num">${kap("v1")}</td><td class="num">${kap("v2")}</td></tr>`;
 
   const sp = S.solve_prompts, sq = S.solve_qrdata, qt = S.qrdata_by_type;
   const order = Object.keys(sp).sort((a, b) => sp[b].overall.rate - sp[a].overall.rate);

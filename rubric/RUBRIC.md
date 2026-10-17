@@ -34,3 +34,11 @@ What counts as naming the mechanism, per flaw type:
 - **Flag rate** = share of flawed answers with verdict FLAWED (score 1 or 2).
 - **False alarm rate** = share of clean controls with verdict FLAWED.
 - Grader agreement is reported as Cohen's kappa next to raw percent agreement; raw agreement alone looks high when most items fall in one class.
+
+## Hand-reviewed grades
+
+80 reviews, sampled with a fixed seed and stratified by flaw type and verdict
+(`evalset/hand_grade.py`). Each review got a draft score with a one line reason from a second
+grader that never saw the judge's scores (`results/draft_grades.jsonl`). The draft was then
+confirmed or changed by hand, row by row (`results/hand_grades.jsonl`, field `changed`).
+Judge agreement is reported against these grades with Cohen's kappa.

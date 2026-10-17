@@ -37,8 +37,8 @@ v1: the judge reads the rubric and returns a 0/1/2 score. v2: the verdict is par
 
 | judge | scores contradicting the verdict | n hand graded | raw agreement (0/1/2) | Cohen's kappa | weighted kappa | raw agreement (caught?) | kappa (caught?) |
 |---|---|---|---|---|---|---|---|
-| phi4:14b v1 | 26% (62/240) | 0 | - | - | - | - | - |
-| phi4:14b v2 | 0% (0/240) | 0 | - | - | - | - | - |
+| phi4:14b v1 | 26% (62/240) | 80 | 0.65 | 0.496 | 0.623 | 0.938 | 0.866 |
+| phi4:14b v2 | 0% (0/240) | 80 | 0.912 | 0.866 | 0.894 | 0.975 | 0.947 |
 
 ## Position bias (flawed vs clean twin, both orders)
 

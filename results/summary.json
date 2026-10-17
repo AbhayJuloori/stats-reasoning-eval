@@ -1401,12 +1401,20 @@
   },
   "judge_vs_hand": {
     "v1": {
-      "n": 0,
-      "note": "hand grades not done yet"
+      "n": 80,
+      "raw_agreement_3class": 0.65,
+      "kappa_3class": 0.496,
+      "weighted_kappa_3class": 0.623,
+      "raw_agreement_caught": 0.938,
+      "kappa_caught": 0.866
     },
     "v2": {
-      "n": 0,
-      "note": "hand grades not done yet"
+      "n": 80,
+      "raw_agreement_3class": 0.912,
+      "kappa_3class": 0.866,
+      "weighted_kappa_3class": 0.894,
+      "raw_agreement_caught": 0.975,
+      "kappa_caught": 0.947
     }
   },
   "pairwise": {
